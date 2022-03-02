@@ -1,28 +1,51 @@
 package job
 
-import "sync"
+import (
+	"context"
+	"fmt"
+	"sync"
+)
 
-func AsyncLimitedJobRunner(limit uint, jobs <-chan Job) (report map[string]error) {
-	report = make(map[string]error, len(jobs))
+func AsyncLimitedJobRunner(limit uint, jobs <-chan Job) error {
 	limiter := make(chan struct{}, limit)
 	wg := sync.WaitGroup{}
 
-	for job := range jobs {
-		limiter <- struct{}{} // reserve
-		wg.Add(1)
+	resultErr := make(chan error)
+	ctx, cancel := context.WithCancel(context.Background())
 
-		go func(job Job) {
-			defer func() {
-				<-limiter // release
-				wg.Done()
-			}()
+	go func() {
+		for job := range jobs {
+			limiter <- struct{}{} // reserve
+			wg.Add(1)
 
-			if err := job.Func(); err != nil {
-				report[job.Name] = err
+			go func(ctx context.Context, job Job) {
+				defer func() {
+					<-limiter // release
+					wg.Done()
+				}()
+
+				if err := job.Func(); err != nil {
+					resultErr <- fmt.Errorf("job '%s' failed: %v", job.Name, err)
+				} else {
+					resultErr <- nil
+				}
+			}(ctx, job)
+		}
+
+		wg.Wait()
+		close(resultErr)
+		cancel()
+	}()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case lErr := <-resultErr:
+			if lErr != nil {
+				cancel()
+				return lErr
 			}
-		}(job)
+		}
 	}
-
-	wg.Wait()
-	return report
 }

@@ -9,6 +9,41 @@ import (
 )
 
 func TestAsyncLimitedJobRunner(t *testing.T) {
+	t.Run("no error", func(t *testing.T) {
+		jobs := make(chan Job)
+		var counter uint32
+		go func() {
+			jobs <- Job{
+				Name: "fake 1 - no errors",
+				Func: func() error {
+					atomic.AddUint32(&counter, 1)
+					return nil
+				},
+			}
+			jobs <- Job{
+				Name: "fake 2 - no errors",
+				Func: func() error {
+					atomic.AddUint32(&counter, 1)
+					return nil
+				},
+			}
+			jobs <- Job{
+				Name: "fake 3 - no errors",
+				Func: func() error {
+					atomic.AddUint32(&counter, 1)
+					return nil
+				},
+			}
+			close(jobs)
+		}()
+		if err := AsyncLimitedJobRunner(1, jobs); err != nil {
+			t.Errorf("should not emit error")
+		}
+		if counter != 3 {
+			t.Errorf("all jobs should be finished")
+		}
+	})
+
 	t.Run("errors collected", func(t *testing.T) {
 		jobs := make(chan Job)
 		go func() {
@@ -32,13 +67,12 @@ func TestAsyncLimitedJobRunner(t *testing.T) {
 			}
 			close(jobs)
 		}()
-		report := AsyncLimitedJobRunner(1, jobs)
-		if len(report) != 2 {
-			t.Errorf("should collect all errors")
+		if err := AsyncLimitedJobRunner(1, jobs); err == nil {
+			t.Errorf("should collect error")
 		}
 	})
 
-	t.Run("limiter works", func(t *testing.T) {
+	t.Run("limited works count", func(t *testing.T) {
 		total := 10
 
 		terminators := make([]chan struct{}, total)
@@ -66,7 +100,7 @@ func TestAsyncLimitedJobRunner(t *testing.T) {
 
 		go func() {
 			// detach to prevent deadlock
-			AsyncLimitedJobRunner(2, jobs)
+			_ = AsyncLimitedJobRunner(2, jobs)
 		}()
 		time.Sleep(time.Second)
 

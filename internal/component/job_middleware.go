@@ -12,21 +12,26 @@ import (
 // NewCheckLinkJob use closure to prepare job that would send reports with hashes
 func NewCheckLinkJob(link string, out chan<- domain.OutputChunk) func() error {
 	return func() error {
+		chunk := domain.OutputChunk{
+			Url: link,
+		}
+		defer func() {
+			out <- chunk
+		}()
+
 		resp, err := http.Get(link)
 		if err != nil {
-			return err
+			chunk.Warn = err
+			return nil
 		}
 		content, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
-			return err
+			chunk.Warn = err
+			return nil
 		}
 
 		sum := md5.Sum(content)
-
-		out <- domain.OutputChunk{
-			Url:  link,
-			Hash: fmt.Sprintf("%x", sum),
-		}
+		chunk.Hash = fmt.Sprintf("%x", sum)
 
 		return nil
 	}

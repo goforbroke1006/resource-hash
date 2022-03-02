@@ -2,10 +2,10 @@ package component
 
 import (
 	"fmt"
-	"resource-hash/pkg/links"
 
 	"resource-hash/domain"
 	"resource-hash/pkg/job"
+	"resource-hash/pkg/links"
 )
 
 func NewApplication(filename string, concurrency uint) *application {
@@ -33,7 +33,11 @@ func (app application) Run() {
 	outputCh := make(chan domain.OutputChunk)
 	go func() {
 		for chunk := range outputCh {
-			fmt.Printf("%s -> %s\n", chunk.Url, chunk.Hash)
+			if chunk.Warn != nil {
+				fmt.Printf("WARN: job '%s' rejected: %v\n", chunk.Url, chunk.Warn)
+			} else {
+				fmt.Printf("%s -> %s\n", chunk.Url, chunk.Hash)
+			}
 		}
 	}()
 
@@ -48,11 +52,8 @@ func (app application) Run() {
 		close(jobsCh)
 	}()
 
-	report := job.AsyncLimitedJobRunner(app.concurrency, jobsCh)
-	close(outputCh)
-
-	for link, err := range report {
-		// TODO: realize async output for errors
-		fmt.Printf("ERROR: job '%s' failed : %v\n", link, err)
+	if err := job.AsyncLimitedJobRunner(app.concurrency, jobsCh); err != nil {
+		fmt.Printf("ERROR: job runner stop with err: %v", err)
 	}
+	close(outputCh)
 }
