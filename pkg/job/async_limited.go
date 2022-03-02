@@ -2,11 +2,6 @@ package job
 
 import "sync"
 
-type Job struct {
-	Name string
-	Func func() error
-}
-
 func AsyncLimitedJobRunner(limit uint, jobs <-chan Job) (report map[string]error) {
 	report = make(map[string]error, len(jobs))
 	limiter := make(chan struct{}, limit)

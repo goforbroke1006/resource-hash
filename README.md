@@ -11,6 +11,5 @@ Parallel check links list, print md5 for each.
 
 ```shell
 make
-
 ./resource-hash --concurrency=5 --filename=links.txt
 ```

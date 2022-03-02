@@ -1,4 +1,4 @@
-package component
+package links
 
 import (
 	"bufio"
@@ -6,6 +6,8 @@ import (
 	"strings"
 )
 
+// ReadLinksList provides buffered reading file line by line
+// It is suitable for big files
 func ReadLinksList(filename string, bufSize uint) (links chan string, err error) {
 	links = make(chan string, bufSize)
 

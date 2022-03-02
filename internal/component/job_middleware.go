@@ -9,6 +9,7 @@ import (
 	"resource-hash/domain"
 )
 
+// NewCheckLinkJob use closure to prepare job that would send reports with hashes
 func NewCheckLinkJob(link string, out chan<- domain.OutputChunk) func() error {
 	return func() error {
 		resp, err := http.Get(link)
