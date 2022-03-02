@@ -1,6 +1,6 @@
 # resource-hash
 
-Parallel check links list, print md5 for each.
+Parallel check links list, print md5 for each one.
 
 ### Requirements
 
